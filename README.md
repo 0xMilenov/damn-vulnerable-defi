@@ -1,3 +1,9 @@
+# Solutions
+
+15. ABI Smuggling
+
+- forge test --match-test test_abiSmuggling -vv
+
 # Damn Vulnerable DeFi
 
 Damn Vulnerable DeFi is _the_ smart contract security playground for developers, security researchers and educators.
