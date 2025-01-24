@@ -11,6 +11,7 @@ import {DamnValuableToken} from "../../src/DamnValuableToken.sol";
 import {FreeRiderNFTMarketplace} from "../../src/free-rider/FreeRiderNFTMarketplace.sol";
 import {FreeRiderRecoveryManager} from "../../src/free-rider/FreeRiderRecoveryManager.sol";
 import {DamnValuableNFT} from "../../src/DamnValuableNFT.sol";
+import {FreeRiderExploiter} from "./FreeRiderExploiter.sol";
 
 contract FreeRiderChallenge is Test {
     address deployer = makeAddr("deployer");
@@ -58,9 +59,17 @@ contract FreeRiderChallenge is Test {
         weth = new WETH();
 
         // Deploy Uniswap V2 Factory and Router
-        uniswapV2Factory = IUniswapV2Factory(deployCode("builds/uniswap/UniswapV2Factory.json", abi.encode(address(0))));
+        uniswapV2Factory = IUniswapV2Factory(
+            deployCode(
+                "builds/uniswap/UniswapV2Factory.json",
+                abi.encode(address(0))
+            )
+        );
         uniswapV2Router = IUniswapV2Router02(
-            deployCode("builds/uniswap/UniswapV2Router02.json", abi.encode(address(uniswapV2Factory), address(weth)))
+            deployCode(
+                "builds/uniswap/UniswapV2Router02.json",
+                abi.encode(address(uniswapV2Factory), address(weth))
+            )
         );
 
         token.approve(address(uniswapV2Router), UNISWAP_INITIAL_TOKEN_RESERVE);
@@ -74,11 +83,15 @@ contract FreeRiderChallenge is Test {
         );
 
         // Get a reference to the created Uniswap pair
-        uniswapPair = IUniswapV2Pair(uniswapV2Factory.getPair(address(token), address(weth)));
+        uniswapPair = IUniswapV2Pair(
+            uniswapV2Factory.getPair(address(token), address(weth))
+        );
 
         // Deploy the marketplace and get the associated ERC721 token
         // The marketplace will automatically mint AMOUNT_OF_NFTS to the deployer (see `FreeRiderNFTMarketplace::constructor`)
-        marketplace = new FreeRiderNFTMarketplace{value: MARKETPLACE_INITIAL_ETH_BALANCE}(AMOUNT_OF_NFTS);
+        marketplace = new FreeRiderNFTMarketplace{
+            value: MARKETPLACE_INITIAL_ETH_BALANCE
+        }(AMOUNT_OF_NFTS);
 
         // Get a reference to the deployed NFT contract. Then approve the marketplace to trade them.
         nft = marketplace.token();
@@ -94,8 +107,12 @@ contract FreeRiderChallenge is Test {
         marketplace.offerMany(ids, prices);
 
         // Deploy recovery manager contract, adding the player as the beneficiary
-        recoveryManager =
-            new FreeRiderRecoveryManager{value: BOUNTY}(player, address(nft), recoveryManagerOwner, BOUNTY);
+        recoveryManager = new FreeRiderRecoveryManager{value: BOUNTY}(
+            player,
+            address(nft),
+            recoveryManagerOwner,
+            BOUNTY
+        );
 
         vm.stopPrank();
     }
@@ -115,7 +132,9 @@ contract FreeRiderChallenge is Test {
             assertEq(nft.ownerOf(id), deployer);
         }
         assertEq(marketplace.offersCount(), 6);
-        assertTrue(nft.isApprovedForAll(address(recoveryManager), recoveryManagerOwner));
+        assertTrue(
+            nft.isApprovedForAll(address(recoveryManager), recoveryManagerOwner)
+        );
         assertEq(address(recoveryManager).balance, BOUNTY);
     }
 
@@ -123,7 +142,11 @@ contract FreeRiderChallenge is Test {
      * CODE YOUR SOLUTION HERE
      */
     function test_freeRider() public checkSolvedByPlayer {
-        
+        FreeRiderExploiter exploiter = new FreeRiderExploiter{
+            value: PLAYER_INITIAL_ETH_BALANCE
+        }(weth, uniswapPair, marketplace, nft, recoveryManager);
+
+        exploiter.attack();
     }
 
     /**
@@ -133,7 +156,11 @@ contract FreeRiderChallenge is Test {
         // The recovery owner extracts all NFTs from its associated contract
         for (uint256 tokenId = 0; tokenId < AMOUNT_OF_NFTS; tokenId++) {
             vm.prank(recoveryManagerOwner);
-            nft.transferFrom(address(recoveryManager), recoveryManagerOwner, tokenId);
+            nft.transferFrom(
+                address(recoveryManager),
+                recoveryManagerOwner,
+                tokenId
+            );
             assertEq(nft.ownerOf(tokenId), recoveryManagerOwner);
         }
 
